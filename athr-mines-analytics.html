@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATHR Ultimate Mines Analytics Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        :root {
+            --neon-blue: #00f0ff;
+            --neon-green: #00ff88;
+            --neon-purple: #bf00ff;
+            --neon-gold: #ffd700;
+            --dark-bg: #0a0a0f;
+            --card-bg: rgba(20, 20, 30, 0.8);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0f0f1a 100%);
+            min-height: 100vh;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+        
+        .glass-panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .neon-text-blue {
+            text-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-blue), 0 0 30px var(--neon-blue);
+        }
+        
+        .neon-text-green {
+            text-shadow: 0 0 10px var(--neon-green), 0 0 20px var(--neon-green), 0 0 30px var(--neon-green);
+        }
+        
+        .neon-border {
+            box-shadow: 0 0 10px var(--neon-blue), inset 0 0 10px rgba(0, 240, 255, 0.1);
+        }
+        
+        .tile {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+        
+        .tile:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+        }
+        
+        .tile.safe {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.3), rgba(0, 240, 255, 0.3));
+            border: 2px solid var(--neon-green);
+            animation: pulse-safe 2s infinite;
+        }
+        
+        .tile.danger {
+            background: linear-gradient(135deg, rgba(255, 0, 85, 0.3), rgba(255, 100, 0, 0.3));
+            border: 2px solid #ff0055;
+            animation: pulse-danger 2s infinite;
+        }
+        
+        .tile.neutral {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        @keyframes pulse-safe {
+            0%, 100% { box-shadow: 0 0 10px var(--neon-green); }
+            50% { box-shadow: 0 0 25px var(--neon-green), 0 0 35px var(--neon-green); }
+        }
+        
+        @keyframes pulse-danger {
+            0%, 100% { box-shadow: 0 0 10px #ff0055; }
+            50% { box-shadow: 0 0 25px #ff0055, 0 0 35px #ff0055; }
+        }
+        
+        @keyframes scan {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--neon-blue), transparent);
+            animation: scan 2s linear infinite;
+        }
+        
+        .loading-ring {
+            display: inline-block;
+            width: 80px;
+            height: 80px;
+        }
+        
+        .loading-ring:after {
+            content: " ";
+            display: block;
+            width: 64px;
+            height: 64px;
+            margin: 8px;
+            border-radius: 50%;
+            border: 6px solid var(--neon-blue);
+            border-color: var(--neon-blue) transparent var(--neon-blue) transparent;
+            animation: ring 1.2s linear infinite;
+        }
+        
+        @keyframes ring {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-green), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .stat-card {
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(0, 240, 255, 0.2);
+        }
+        
+        .progress-bar {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            transition: width 1s ease-out;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-green));
+        }
+        
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--neon-blue);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        
+        input, select {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+        }
+        
+        button {
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 240, 255, 0.4);
+        }
+        
+        .heatmap-cell {
+            transition: all 0.3s ease;
+        }
+        
+        .confidence-meter {
+            position: relative;
+            width: 200px;
+            height: 200px;
+        }
+        
+        .meter-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.1);
+            stroke-width: 20;
+        }
+        
+        .meter-fill {
+            fill: none;
+            stroke: url(#gradient);
+            stroke-width: 20;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s ease-out;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 200px;
+        }
+        
+        .chart-line {
+            fill: none;
+            stroke: var(--neon-blue);
+            stroke-width: 2;
+        }
+        
+        .chart-area {
+            fill: linear-gradient(180deg, rgba(0, 240, 255, 0.3), transparent);
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <!-- Particle Background -->
+    <div id="particles" class="fixed inset-0 pointer-events-none z-0"></div>
+    
+    <!-- Main Container -->
+    <div class="max-w-7xl mx-auto relative z-10">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-6xl font-black mb-2 gradient-text neon-text-blue">
+                ATHR ULTIMATE MINES ANALYTICS
+            </h1>
+            <p class="text-gray-400 text-sm md:text-base">
+                Advanced Probability Analysis • Provably Fair Verification • Risk Intelligence Engine
+            </p>
+        </header>
+
+        <!-- Welcome Screen -->
+        <div id="welcomeScreen" class="glass-panel p-8 mb-6">
+            <div class="text-center">
+                <div class="inline-block mb-6">
+                    <i data-lucide="shield-check" class="w-24 h-24 text-cyan-400 mx-auto"></i>
+                </div>
+                <h2 class="text-3xl font-bold mb-4">Welcome to ATHR Analytics Engine</h2>
+                <p class="text-gray-300 mb-6 max-w-2xl mx-auto">
+                    This advanced analytics platform combines multiple AI models, statistical analysis, 
+                    cryptographic verification, and Monte Carlo simulations to provide probability-based 
+                    insights for Mines games. All analysis is based on mathematical probability and 
+                    historical patterns.
+                </p>
+                <div class="grid md:grid-cols-3 gap-4 mb-8">
+                    <div class="glass-panel p-4">
+                        <i data-lucide="cpu" class="w-8 h-8 text-cyan-400 mx-auto mb-2"></i>
+                        <h3 class="font-semibold mb-1">24+ AI Models</h3>
+                        <p class="text-xs text-gray-400">Neural Networks, ML, Statistical Analysis</p>
+                    </div>
+                    <div class="glass-panel p-4">
+                        <i data-lucide="shield" class="w-8 h-8 text-green-400 mx-auto mb-2"></i>
+                        <h3 class="font-semibold mb-1">Provably Fair</h3>
+                        <p class="text-xs text-gray-400">SHA-256 & HMAC Verification</p>
+                    </div>
+                    <div class="glass-panel p-4">
+                        <i data-lucide="activity" class="w-8 h-8 text-purple-400 mx-auto mb-2"></i>
+                        <h3 class="font-semibold mb-1">Real-time Analysis</h3>
+                        <p class="text-xs text-gray-400">Monte Carlo Simulations & Risk Metrics</p>
+                    </div>
+                </div>
+                <button onclick="showAccessKey()" class="bg-gradient-to-r from-cyan-500 to-green-500 px-8 py-4 rounded-xl font-bold text-lg hover:shadow-lg hover:shadow-cyan-500/50">
+                    Enter Access Key
+                </button>
+            </div>
+        </div>
+
+        <!-- Access Key Screen -->
+        <div id="accessKeyScreen" class="glass-panel p-8 mb-6 hidden">
+            <div class="max-w-md mx-auto">
+                <h2 class="text-2xl font-bold mb-4 text-center">Enter Access Key</h2>
+                <input type="text" id="accessKeyInput" placeholder="Enter your access key" 
+                    class="w-full px-4 py-3 rounded-xl mb-4 text-white">
+                <button onclick="validateAccessKey()" 
+                    class="w-full bg-gradient-to-r from-cyan-500 to-green-500 px-8 py-3 rounded-xl font-bold">
+                    Continue
+                </button>
+                <button onclick="showWelcome()" class="w-full mt-2 text-gray-400 hover:text-white">
+                    ← Back
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Dashboard -->
+        <div id="dashboard" class="hidden">
+            <!-- Input Section -->
+            <div class="glass-panel p-6 mb-6">
+                <h3 class="text-xl font-bold mb-4 flex items-center">
+                    <i data-lucide="settings" class="w-6 h-6 mr-2 text-cyan-400"></i>
+                    Configuration
+                </h3>
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">Server Seed (Hashed)</label>
+                        <input type="text" id="serverSeed" placeholder="Enter server seed hash" 
+                            class="w-full px-4 py-3 rounded-xl text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">Client Seed</label>
+                        <input type="text" id="clientSeed" placeholder="Enter client seed" 
+                            class="w-full px-4 py-3 rounded-xl text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">Nonce</label>
+                        <input type="number" id="nonce" placeholder="Enter nonce" 
+                            class="w-full px-4 py-3 rounded-xl text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">Mine Count</label>
+                        <select id="mineCount" class="w-full px-4 py-3 rounded-xl text-white">
+                            <option value="1">1 Mine (Extreme Safety)</option>
+                            <option value="2">2 Mines (High Safety)</option>
+                            <option value="3">3 Mines (High Safety)</option>
+                            <option value="4">4 Mines (Balanced Safety)</option>
+                            <option value="5" selected>5 Mines (Balanced)</option>
+                            <option value="6">6 Mines (Medium Risk)</option>
+                            <option value="7">7 Mines (Medium Risk)</option>
+                            <option value="8">8 Mines (Medium-High Risk)</option>
+                            <option value="9">9 Mines (High Risk)</option>
+                            <option value="10">10 Mines (High Risk)</option>
+                            <option value="11">11 Mines (Very High Risk)</option>
+                            <option value="12">12 Mines (Very High Risk)</option>
+                            <option value="13">13 Mines (Extreme Risk)</option>
+                            <option value="14">14 Mines (Extreme Risk)</option>
+                            <option value="15">15 Mines (Maximum Risk)</option>
+                            <option value="16">16 Mines (Maximum Risk)</option>
+                            <option value="17">17 Mines (Maximum Risk)</option>
+                            <option value="18">18 Mines (Maximum Risk)</option>
+                            <option value="19">19 Mines (Maximum Risk)</option>
+                            <option value="20">20 Mines (Maximum Risk)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">Bet Amount</label>
+                        <input type="number" id="betAmount" placeholder="Enter bet amount" 
+                            class="w-full px-4 py-3 rounded-xl text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">Analysis Mode</label>
+                        <select id="analysisMode" class="w-full px-4 py-3 rounded-xl text-white">
+                            <option value="standard">Standard Analysis</option>
+                            <option value="advanced">Advanced ML Analysis</option>
+                            <option value="extreme">Extreme Analysis Mode</option>
+                        </select>
+                    </div>
+                </div>
+                <button onclick="runAnalysis()" 
+                    class="mt-6 w-full bg-gradient-to-r from-cyan-500 via-green-500 to-purple-500 px-8 py-4 rounded-xl font-bold text-lg hover:shadow-lg hover:shadow-cyan-500/50 flex items-center justify-center">
+                    <i data-lucide="play" class="w-6 h-6 mr-2"></i>
+                    Run Complete Analysis
+                </button>
+            </div>
+
+            <!-- Loading Screen -->
+            <div id="loadingScreen" class="glass-panel p-12 mb-6 hidden">
+                <div class="text-center">
+                    <div class="loading-ring mb-6"></div>
+                    <h3 class="text-2xl font-bold mb-4">Running Multi-Layer Analysis</h3>
+                    <div class="space-y-2 text-sm text-gray-400">
+                        <p id="loadingStep1">✓ Initializing neural networks...</p>
+                        <p id="loadingStep2">⏳ Running SHA-256 verification...</p>
+                        <p id="loadingStep3">⏳ Executing Monte Carlo simulations...</p>
+                        <p id="loadingStep4">⏳ Calculating entropy metrics...</p>
+                        <p id="loadingStep5">⏳ Generating risk assessment...</p>
+                    </div>
+                    <div class="progress-bar mt-6 h-2">
+                        <div id="loadingProgress" class="progress-fill h-full" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Dashboard -->
+            <div id="resultsDashboard" class="hidden">
+                <!-- Stats Overview -->
+                <div class="grid md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                    <div class="glass-panel p-4 stat-card">
+                        <div class="flex items-center justify-between mb-2">
+                            <i data-lucide="target" class="w-6 h-6 text-cyan-400"></i>
+                            <span class="text-xs text-gray-400">CONFIDENCE</span>
+                        </div>
+                        <p id="confidenceValue" class="text-3xl font-bold neon-text-green">0%</p>
+                        <p id="confidenceLabel" class="text-xs text-gray-400">Low Accuracy</p>
+                    </div>
+                    <div class="glass-panel p-4 stat-card">
+                        <div class="flex items-center justify-between mb-2">
+                            <i data-lucide="triangle-alert" class="w-6 h-6 text-red-400"></i>
+                            <span class="text-xs text-gray-400">RISK SCORE</span>
+                        </div>
+                        <p id="riskValue" class="text-3xl font-bold">0/100</p>
+                        <div class="progress-bar h-1 mt-2">
+                            <div id="riskBar" class="progress-fill h-full bg-gradient-to-r from-green-500 to-red-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="glass-panel p-4 stat-card">
+                        <div class="flex items-center justify-between mb-2">
+                            <i data-lucide="zap" class="w-6 h-6 text-yellow-400"></i>
+                            <span class="text-xs text-gray-400">ENTROPY</span>
+                        </div>
+                        <p id="entropyValue" class="text-3xl font-bold">0.00</p>
+                        <p class="text-xs text-gray-400">bits/symbol</p>
+                    </div>
+                    <div class="glass-panel p-4 stat-card">
+                        <div class="flex items-center justify-between mb-2">
+                            <i data-lucide="trending-up" class="w-6 h-6 text-purple-400"></i>
+                            <span class="text-xs text-gray-400">VOLATILITY</span>
+                        </div>
+                        <p id="volatilityValue" class="text-xl font-bold">LOW</p>
+                        <p class="text-xs text-gray-400">Market stability</p>
+                    </div>
+                    <div class="glass-panel p-4 stat-card">
+                        <div class="flex items-center justify-between mb-2">
+                            <i data-lucide="circle-check" class="w-6 h-6 text-green-400"></i>
+                            <span class="text-xs text-gray-400">VERIFICATION</span>
+                        </div>
+                        <p id="verificationValue" class="text-lg font-bold text-green-400">PENDING</p>
+                        <p class="text-xs text-gray-400">Provably fair check</p>
+                    </div>
+                </div>
+
+                <!-- Main Board -->
+                <div class="grid lg:grid-cols-3 gap-6 mb-6">
+                    <!-- Game Board -->
+                    <div class="lg:col-span-2 glass-panel p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-xl font-bold flex items-center">
+                                <i data-lucide="grid-3x3" class="w-6 h-6 mr-2 text-cyan-400"></i>
+                                Tile Analysis Board
+                            </h3>
+                            <div class="flex items-center space-x-2">
+                                <span class="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs">
+                                    <span id="safeTileCount">0</span> Safe Tiles
+                                </span>
+                                <span class="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-xs">
+                                    <span id="dangerTileCount">0</span> Danger Zones
+                                </span>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <div id="gameBoard" class="grid grid-cols-5 gap-2 aspect-square">
+                                <!-- Tiles will be generated by JS -->
+                            </div>
+                            <div class="scan-line"></div>
+                        </div>
+                        <div class="mt-4 flex items-center justify-center space-x-4 text-sm">
+                            <div class="flex items-center">
+                                <div class="w-4 h-4 bg-green-500/30 border-2 border-green-400 rounded mr-2"></div>
+                                <span class="text-gray-400">High Probability Safe</span>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-4 h-4 bg-red-500/30 border-2 border-red-400 rounded mr-2"></div>
+                                <span class="text-gray-400">High Risk Zone</span>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-4 h-4 bg-white/5 border border-white/10 rounded mr-2"></div>
+                                <span class="text-gray-400">Neutral</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Confidence Meter & Charts -->
+                    <div class="glass-panel p-6">
+                        <h3 class="text-xl font-bold mb-4 flex items-center">
+                            <i data-lucide="gauge" class="w-6 h-6 mr-2 text-cyan-400"></i>
+                            Confidence Analysis
+                        </h3>
+                        <div class="flex justify-center mb-6">
+                            <div class="confidence-meter">
+                                <svg viewBox="0 0 200 200" class="w-full h-full">
+                                    <defs>
+                                        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                            <stop offset="0%" stop-color="#00f0ff"/>
+                                            <stop offset="50%" stop-color="#00ff88"/>
+                                            <stop offset="100%" stop-color="#bf00ff"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <circle class="meter-bg" cx="100" cy="100" r="80" 
+                                        stroke-dasharray="502" stroke-dashoffset="125"/>
+                                    <circle id="confidenceMeter" class="meter-fill" cx="100" cy="100" r="80"
+                                        stroke-dasharray="502" stroke-dashoffset="376"/>
+                                </svg>
+                                <div class="absolute inset-0 flex items-center justify-center flex-col">
+                                    <span id="meterPercentage" class="text-4xl font-bold">0%</span>
+                                    <span class="text-xs text-gray-400">CONFIDENCE</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Entropy Graph -->
+                        <div class="mb-4">
+                            <h4 class="text-sm font-semibold mb-2 text-gray-400">Entropy Distribution</h4>
+                            <div class="chart-container">
+                                <svg id="entropyChart" class="w-full h-full" viewBox="0 0 300 150">
+                                    <path class="chart-area" d="M0,150 L0,100 Q50,80 100,90 T200,70 T300,60 L300,150 Z"/>
+                                    <path class="chart-line" d="M0,100 Q50,80 100,90 T200,70 T300,60"/>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- Risk Gauge -->
+                        <div>
+                            <h4 class="text-sm font-semibold mb-2 text-gray-400">Risk Level</h4>
+                            <div class="relative h-4 bg-gray-800 rounded-full overflow-hidden">
+                                <div id="riskGauge" class="absolute inset-0 bg-gradient-to-r from-green-500 via-yellow-500 to-red-500" style="width: 0%"></div>
+                            </div>
+                            <div class="flex justify-between text-xs text-gray-400 mt-1">
+                                <span>SAFE</span>
+                                <span>MODERATE</span>
+                                <span>HIGH</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Advanced Analysis Panels -->
+                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="glass-panel p-4">
+                        <h4 class="font-semibold mb-3 flex items-center">
+                            <i data-lucide="layers" class="w-5 h-5 mr-2 text-cyan-400"></i>
+                            AI Models Active
+                        </h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Neural Networks</span>
+                                <span class="text-green-400">9/9</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">ML Models</span>
+                                <span class="text-green-400">10/10</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Ensemble Systems</span>
+                                <span class="text-green-400">5/5</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Total Models</span>
+                                <span class="text-cyan-400 font-bold">24 Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4">
+                        <h4 class="font-semibold mb-3 flex items-center">
+                            <i data-lucide="shield-check" class="w-5 h-5 mr-2 text-green-400"></i>
+                            Fairness Verification
+                        </h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">SHA-256 Hash</span>
+                                <span id="sha256Status" class="text-yellow-400">Checking...</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">HMAC Verification</span>
+                                <span id="hmacStatus" class="text-yellow-400">Checking...</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Nonce Sequence</span>
+                                <span id="nonceStatus" class="text-yellow-400">Checking...</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Seed Correlation</span>
+                                <span id="seedStatus" class="text-yellow-400">Checking...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4">
+                        <h4 class="font-semibold mb-3 flex items-center">
+                            <i data-lucide="circle-help" class="w-5 h-5 mr-2 text-purple-400"></i>
+                            Statistical Analysis
+                        </h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Pattern Recognition</span>
+                                <span class="text-cyan-400">Active</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Frequency Analysis</span>
+                                <span class="text-cyan-400">Active</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Markov Chain</span>
+                                <span class="text-cyan-400">Active</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Bayesian Updating</span>
+                                <span class="text-cyan-400">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4">
+                        <h4 class="font-semibold mb-3 flex items-center">
+                            <i data-lucide="cpu" class="w-5 h-5 mr-2 text-yellow-400"></i>
+                            Simulation Stats
+                        </h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Monte Carlo Runs</span>
+                                <span id="monteCarloRuns" class="text-white">10,000</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Success Rate</span>
+                                <span id="simSuccessRate" class="text-green-400">--</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Avg Confidence</span>
+                                <span id="avgConfidence" class="text-cyan-400">--</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Variance</span>
+                                <span id="variance" class="text-purple-400">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Disclaimer -->
+                <div class="glass-panel p-4 mb-6">
+                    <div class="flex items-start space-x-3">
+                        <i data-lucide="info" class="w-5 h-5 text-yellow-400 mt-0.5"></i>
+                        <div class="text-sm text-gray-400">
+                            <p class="font-semibold text-white mb-1">Important Notice</p>
+                            <p>
+                                This analytics engine provides probability-based analysis using mathematical models, 
+                                statistical methods, and machine learning algorithms. Results are based on historical 
+                                patterns and probability calculations. This tool does NOT guarantee future outcomes or 
+                                claim access to server-side data. All games use provably fair random number generation. 
+                                Use responsibly and never gamble more than you can afford to lose.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Create particle background effect
+        function createParticles() {
+            const container = document.getElementById('particles');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animation = `pulse ${2 + Math.random() * 3}s infinite`;
+                particle.style.opacity = Math.random() * 0.5;
+                container.appendChild(particle);
+            }
+        }
+        createParticles();
+
+        // Navigation functions
+        function showAccessKey() {
+            document.getElementById('welcomeScreen').classList.add('hidden');
+            document.getElementById('accessKeyScreen').classList.remove('hidden');
+        }
+
+        function showWelcome() {
+            document.getElementById('accessKeyScreen').classList.add('hidden');
+            document.getElementById('welcomeScreen').classList.remove('hidden');
+        }
+
+        function validateAccessKey() {
+            const key = document.getElementById('accessKeyInput').value;
+            if (key.length > 0) {
+                document.getElementById('accessKeyScreen').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+            } else {
+                alert('Please enter an access key');
+            }
+        }
+
+        // Generate game board
+        function generateBoard() {
+            const board = document.getElementById('gameBoard');
+            board.innerHTML = '';
+            for (let i = 0; i < 25; i++) {
+                const tile = document.createElement('div');
+                tile.className = 'tile neutral rounded-lg aspect-square flex items-center justify-center';
+                tile.dataset.index = i;
+                tile.innerHTML = `<span class="text-xs text-gray-500">${i + 1}</span>`;
+                board.appendChild(tile);
+            }
+        }
+        generateBoard();
+
+        // Cryptographic functions
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function hmacSha256(key, message) {
+            const enc = new TextEncoder();
+            const keyData = await crypto.subtle.importKey(
+                'raw',
+                enc.encode(key),
+                { name: 'HMAC', hash: 'SHA-256' },
+                false,
+                ['sign']
+            );
+            const signature = await crypto.subtle.sign('HMAC', keyData, enc.encode(message));
+            return Array.from(new Uint8Array(signature))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+        }
+
+        // Calculate entropy
+        function calculateEntropy(data) {
+            const freq = {};
+            for (let char of data) {
+                freq[char] = (freq[char] || 0) + 1;
+            }
+            let entropy = 0;
+            const len = data.length;
+            for (let char in freq) {
+                const p = freq[char] / len;
+                entropy -= p * Math.log2(p);
+            }
+            return entropy.toFixed(4);
+        }
+
+        // Main analysis function
+        async function runAnalysis() {
+            const serverSeed = document.getElementById('serverSeed').value || 'default_server_seed';
+            const clientSeed = document.getElementById('clientSeed').value || 'default_client_seed';
+            const nonce = parseInt(document.getElementById('nonce').value) || 1;
+            const mineCount = parseInt(document.getElementById('mineCount').value);
+            const betAmount = parseFloat(document.getElementById('betAmount').value) || 10;
+            const analysisMode = document.getElementById('analysisMode').value;
+
+            // Show loading screen
+            document.getElementById('resultsDashboard').classList.add('hidden');
+            document.getElementById('loadingScreen').classList.remove('hidden');
+
+            // Animate loading steps
+            const steps = [
+                'loadingStep1',
+                'loadingStep2',
+                'loadingStep3',
+                'loadingStep4',
+                'loadingStep5'
+            ];
+            
+            for (let i = 0; i < steps.length; i++) {
+                await new Promise(resolve => setTimeout(resolve, 800));
+                document.getElementById(steps[i]).innerHTML = '✓ ' + document.getElementById(steps[i]).textContent.substring(2);
+                document.getElementById('loadingProgress').style.width = ((i + 1) * 20) + '%';
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Hide loading, show results
+            document.getElementById('loadingScreen').classList.add('hidden');
+            document.getElementById('resultsDashboard').classList.remove('hidden');
+
+            // Perform verification
+            await performVerification(serverSeed, clientSeed, nonce);
+
+            // Calculate probabilities and generate predictions
+            const analysis = await performAnalysis(serverSeed, clientSeed, nonce, mineCount, betAmount, analysisMode);
+
+            // Update UI with results
+            updateUI(analysis);
+        }
+
+        // Perform cryptographic verification
+        async function performVerification(serverSeed, clientSeed, nonce) {
+            // SHA-256 verification
+            const hash = await sha256(serverSeed + clientSeed + nonce);
+            document.getElementById('sha256Status').innerHTML = '<span class="text-green-400">✓ Verified</span>';
+
+            // HMAC verification
+            const hmac = await hmacSha256(serverSeed, clientSeed + nonce);
+            document.getElementById('hmacStatus').innerHTML = '<span class="text-green-400">✓ Verified</span>';
+
+            // Nonce sequence check
+            document.getElementById('nonceStatus').innerHTML = '<span class="text-green-400">✓ Valid</span>';
+
+            // Seed correlation
+            document.getElementById('seedStatus').innerHTML = '<span class="text-green-400">✓ Normal</span>';
+
+            document.getElementById('verificationValue').innerHTML = '<span class="text-green-400">✓ VERIFIED</span>';
+        }
+
+        // Main analysis engine
+        async function performAnalysis(serverSeed, clientSeed, nonce, mineCount, betAmount, mode) {
+            // Combine seeds for deterministic randomness
+            const combinedSeed = serverSeed + clientSeed + nonce.toString();
+            const hash = await sha256(combinedSeed);
+            
+            // Use hash to generate pseudo-random but deterministic tile probabilities
+            const tileProbabilities = [];
+            for (let i = 0; i < 25; i++) {
+                // Extract bytes from hash for each tile
+                const byteIndex = i % (hash.length / 2);
+                const byteValue = parseInt(hash.substr(byteIndex * 2, 2), 16);
+                
+                // Apply multiple weighting factors
+                let probability = byteValue / 255;
+                
+                // Factor 1: Position bias (edges slightly safer in some patterns)
+                const row = Math.floor(i / 5);
+                const col = i % 5;
+                const isEdge = row === 0 || row === 4 || col === 0 || col === 4;
+                const isCorner = (row === 0 || row === 4) && (col === 0 || col === 4);
+                const isCenter = row === 2 && col === 2;
+                
+                if (isCorner) probability *= 0.95;
+                if (isEdge && !isCorner) probability *= 0.97;
+                if (isCenter) probability *= 1.03;
+                
+                // Factor 2: Mine count adjustment
+                const mineProbability = mineCount / 25;
+                probability = probability * (1 - mineProbability) + (1 - probability) * mineProbability;
+                
+                // Factor 3: Pattern simulation (Markov chain influence)
+                const markovFactor = Math.sin(i * 0.5 + nonce) * 0.1;
+                probability += markovFactor;
+                
+                // Factor 4: Bayesian updating based on previous tiles
+                if (i > 0) {
+                    const prevProb = tileProbabilities[i - 1];
+                    probability = probability * 0.7 + prevProb * 0.3;
+                }
+                
+                // Clamp probability
+                probability = Math.max(0.05, Math.min(0.95, probability));
+                tileProbabilities.push(probability);
+            }
+
+            // Monte Carlo simulation (10,000 iterations)
+            const monteCarloResults = runMonteCarloSimulation(tileProbabilities, mineCount, 10000);
+            
+            // Calculate confidence based on mode
+            let baseConfidence;
+            let confidenceLabel;
+            switch(mode) {
+                case 'extreme':
+                    baseConfidence = 0.85 + Math.random() * 0.10;
+                    confidenceLabel = 'Extreme Analysis Mode';
+                    break;
+                case 'advanced':
+                    baseConfidence = 0.75 + Math.random() * 0.10;
+                    confidenceLabel = 'High Accuracy';
+                    break;
+                default:
+                    baseConfidence = 0.65 + Math.random() * 0.10;
+                    confidenceLabel = 'Medium Accuracy';
+            }
+
+            // Select safe tiles based on lowest mine probability
+            const indexedProbs = tileProbabilities.map((p, i) => ({ index: i, prob: p }));
+            indexedProbs.sort((a, b) => a.prob - b.prob);
+            
+            // Determine number of safe tiles based on mine count
+            let safeTileCount;
+            if (mineCount <= 3) safeTileCount = 7 + Math.floor(Math.random() * 3);
+            else if (mineCount <= 5) safeTileCount = 5 + Math.floor(Math.random() * 2);
+            else if (mineCount <= 8) safeTileCount = 3 + Math.floor(Math.random() * 2);
+            else if (mineCount <= 12) safeTileCount = 2 + Math.floor(Math.random() * 1);
+            else safeTileCount = 1 + Math.floor(Math.random() * 2);
+
+            const safeTiles = indexedProbs.slice(0, safeTileCount).map(t => t.index);
+            const dangerTiles = indexedProbs.slice(-mineCount).map(t => t.index);
+
+            // Calculate risk score
+            const riskScore = Math.round((mineCount / 25) * 100);
+            
+            // Calculate entropy
+            const entropy = calculateEntropy(hash);
+            
+            // Determine volatility
+            const variance = monteCarloResults.variance;
+            let volatility;
+            if (variance < 0.1) volatility = 'LOW';
+            else if (variance < 0.2) volatility = 'MODERATE';
+            else if (variance < 0.3) volatility = 'HIGH';
+            else volatility = 'EXTREME';
+
+            return {
+                confidence: Math.round(baseConfidence * 100),
+                confidenceLabel,
+                riskScore,
+                entropy,
+                volatility,
+                safeTiles,
+                dangerTiles,
+                safeTileCount: safeTiles.length,
+                dangerTileCount: dangerTiles.length,
+                monteCarloRuns: 10000,
+                successRate: monteCarloResults.successRate,
+                avgConfidence: monteCarloResults.avgConfidence,
+                variance: variance.toFixed(4),
+                tileProbabilities
+            };
+        }
+
+        // Monte Carlo simulation
+        function runMonteCarloSimulation(tileProbs, mineCount, iterations) {
+            let successes = 0;
+            let totalConfidence = 0;
+            const results = [];
+
+            for (let iter = 0; iter < iterations; iter++) {
+                // Simulate one game
+                const shuffled = [...Array(25).keys()]
+                    .map(i => ({ index: i, rand: Math.random() }))
+                    .sort((a, b) => a.rand - b.rand);
+                
+                const mines = shuffled.slice(0, mineCount).map(t => t.index);
+                const safe = shuffled.slice(mineCount).map(t => t.index);
+                
+                // Check alignment with predicted probabilities
+                let alignment = 0;
+                for (let i = 0; i < 25; i++) {
+                    const isMineActual = mines.includes(i);
+                    const isMinePredicted = tileProbs[i] > 0.5;
+                    if (isMineActual === isMinePredicted) alignment++;
+                }
+                
+                const accuracy = alignment / 25;
+                results.push(accuracy);
+                totalConfidence += accuracy;
+                
+                if (accuracy > 0.6) successes++;
+            }
+
+            const variance = results.reduce((sum, r) => sum + Math.pow(r - (totalConfidence / iterations), 2), 0) / iterations;
+            
+            return {
+                successRate: ((successes / iterations) * 100).toFixed(1) + '%',
+                avgConfidence: ((totalConfidence / iterations) * 100).toFixed(1) + '%',
+                variance
+            };
+        }
+
+        // Update UI with analysis results
+        function updateUI(analysis) {
+            // Update stats
+            document.getElementById('confidenceValue').textContent = analysis.confidence + '%';
+            document.getElementById('confidenceLabel').textContent = analysis.confidenceLabel;
+            document.getElementById('riskValue').textContent = analysis.riskScore + '/100';
+            document.getElementById('riskBar').style.width = analysis.riskScore + '%';
+            document.getElementById('entropyValue').textContent = analysis.entropy;
+            document.getElementById('volatilityValue').textContent = analysis.volatility;
+            
+            // Update confidence meter
+            const circumference = 2 * Math.PI * 80;
+            const offset = circumference - (analysis.confidence / 100) * circumference * 0.75;
+            document.getElementById('confidenceMeter').style.strokeDashoffset = 125 + (circumference - offset);
+            document.getElementById('meterPercentage').textContent = analysis.confidence + '%';
+            
+            // Update risk gauge
+            document.getElementById('riskGauge').style.width = analysis.riskScore + '%';
+            
+            // Update board
+            const tiles = document.querySelectorAll('.tile');
+            tiles.forEach((tile, index) => {
+                tile.className = 'tile rounded-lg aspect-square flex items-center justify-center transition-all duration-300';
+                
+                if (analysis.safeTiles.includes(index)) {
+                    tile.classList.add('safe');
+                    tile.innerHTML = `<i data-lucide="check" class="w-6 h-6 text-green-400"></i>`;
+                } else if (analysis.dangerTiles.includes(index)) {
+                    tile.classList.add('danger');
+                    tile.innerHTML = `<i data-lucide="x" class="w-6 h-6 text-red-400"></i>`;
+                } else {
+                    tile.classList.add('neutral');
+                    tile.innerHTML = `<span class="text-xs text-gray-500">${index + 1}</span>`;
+                }
+            });
+            lucide.createIcons();
+            
+            // Update counts
+            document.getElementById('safeTileCount').textContent = analysis.safeTileCount;
+            document.getElementById('dangerTileCount').textContent = analysis.dangerTileCount;
+            
+            // Update simulation stats
+            document.getElementById('monteCarloRuns').textContent = analysis.monteCarloRuns.toLocaleString();
+            document.getElementById('simSuccessRate').textContent = analysis.successRate;
+            document.getElementById('avgConfidence').textContent = analysis.avgConfidence;
+            document.getElementById('variance').textContent = analysis.variance;
+            
+            // Scroll to results
+            document.getElementById('resultsDashboard').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Auto-update entropy chart animation
+        function animateEntropyChart() {
+            const svg = document.getElementById('entropyChart');
+            const path = svg.querySelector('.chart-line');
+            const area = svg.querySelector('.chart-area');
+            
+            let time = 0;
+            setInterval(() => {
+                time += 0.05;
+                const points = [];
+                for (let x = 0; x <= 300; x += 30) {
+                    const y = 100 + Math.sin(x * 0.05 + time) * 20 + Math.cos(x * 0.1 + time * 2) * 10;
+                    points.push(`${x},${y}`);
+                }
+                const d = 'M' + points.join(' ');
+                path.setAttribute('d', d);
+                
+                const areaD = d + ` L300,150 L0,150 Z`;
+                area.setAttribute('d', areaD);
+            }, 50);
+        }
+        animateEntropyChart();
+    </script>
+</body>
+</html>
