@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Jake Predicts — Silver Plus
+// @name         ATHR Fairness Data UI
 // @namespace    http://tampermonkey.net/
-// @version      14.0.0
-// @description  Jake Predictor Bypassed By Chief
-// @author       Chief
+// @version      14.1.0
+// @description  ATHR fairness data panel for Stake seed/hash visibility
+// @author       ATHR
 // @match        *://stake.us*/*
 // @match        *://stake.com*/*
 // @grant        GM_getValue
@@ -11,6 +11,162 @@
 // @grant        GM_addStyle
 // @run-at       document-idle
 // ==/UserScript==
+
+// ATHR branding and fairness data UI.
+(() => {
+  "use strict";
+
+  const BRAND = "ATHR";
+  const PANEL_ID = "athr-fairness-panel";
+  const FAIRNESS_KEYS = [
+    "serverSeed",
+    "serverSeedHash",
+    "serverSeedHashed",
+    "server_seed",
+    "server_seed_hash",
+    "clientSeed",
+    "client_seed",
+    "nonce",
+    "cursor",
+    "game",
+    "betId",
+    "id",
+    "result",
+    "roll",
+    "multiplier",
+    "hash",
+  ];
+  const LABELS = {
+    serverSeed: "Server Seed",
+    serverSeedHash: "Server Seed Hash",
+    serverSeedHashed: "Server Seed Hash",
+    server_seed: "Server Seed",
+    server_seed_hash: "Server Seed Hash",
+    clientSeed: "Client Seed",
+    client_seed: "Client Seed",
+    nonce: "Nonce",
+    cursor: "Cursor",
+    game: "Game",
+    betId: "Bet ID",
+    id: "ID",
+    result: "Result",
+    roll: "Roll",
+    multiplier: "Multiplier",
+    hash: "Hash",
+  };
+
+  const state = new Map();
+  const shortValue = (value) => {
+    if (value == null || value === "") return "Not detected yet";
+    const text = typeof value === "string" ? value : JSON.stringify(value);
+    return text.length > 96 ? `${text.slice(0, 48)}…${text.slice(-32)}` : text;
+  };
+  const normalizeKey = (key) => String(key || "").replace(/[-\s]/g, "_");
+  const save = (key, value) => {
+    if (value == null || value === "") return;
+    const normalized = normalizeKey(key);
+    if (!FAIRNESS_KEYS.includes(normalized) && !FAIRNESS_KEYS.includes(key)) return;
+    state.set(normalized, value);
+    renderPanel();
+  };
+
+  const scanObject = (value) => {
+    if (!value || typeof value !== "object") return;
+    if (Array.isArray(value)) {
+      value.forEach(scanObject);
+      return;
+    }
+    Object.entries(value).forEach(([key, item]) => {
+      const normalized = normalizeKey(key);
+      if (FAIRNESS_KEYS.includes(normalized) || FAIRNESS_KEYS.includes(key)) save(normalized, item);
+      if (item && typeof item === "object") scanObject(item);
+    });
+  };
+
+  const scanText = (text) => {
+    if (!text || typeof text !== "string") return;
+    try { scanObject(JSON.parse(text)); } catch (_) {}
+    const patterns = [
+      [/server\s*seed\s*hash\s*[:=]\s*([a-f0-9]{32,128})/i, "serverSeedHash"],
+      [/server\s*seed\s*[:=]\s*([a-z0-9_-]{8,128})/i, "serverSeed"],
+      [/client\s*seed\s*[:=]\s*([a-z0-9_-]{3,128})/i, "clientSeed"],
+      [/nonce\s*[:=]\s*(\d+)/i, "nonce"],
+    ];
+    patterns.forEach(([regex, key]) => {
+      const match = text.match(regex);
+      if (match) save(key, match[1]);
+    });
+  };
+
+  const addStyle = () => {
+    const css = `
+      #${PANEL_ID}{position:fixed;right:16px;bottom:16px;z-index:2147483647;width:340px;max-width:calc(100vw - 32px);font:12px/1.4 Inter,Arial,sans-serif;color:#f8fbff;background:linear-gradient(180deg,#111827,#0b1020);border:1px solid #22d3ee;border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.45);overflow:hidden}
+      #${PANEL_ID} .athr-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:rgba(34,211,238,.12);border-bottom:1px solid rgba(34,211,238,.35)}
+      #${PANEL_ID} .athr-brand{font-weight:800;letter-spacing:.12em;color:#67e8f9}
+      #${PANEL_ID} button{cursor:pointer;border:1px solid rgba(103,232,249,.55);background:rgba(8,145,178,.22);color:#e0faff;border-radius:8px;padding:4px 8px;font-size:11px}
+      #${PANEL_ID} .athr-body{padding:10px 12px;display:grid;gap:8px;max-height:50vh;overflow:auto}
+      #${PANEL_ID} .athr-row{display:grid;gap:3px;padding-bottom:7px;border-bottom:1px solid rgba(148,163,184,.18)}
+      #${PANEL_ID} .athr-label{color:#93c5fd;text-transform:uppercase;font-size:10px;letter-spacing:.08em}
+      #${PANEL_ID} .athr-value{word-break:break-all;color:#fff;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+      #${PANEL_ID} .athr-empty{color:#cbd5e1}
+    `;
+    if (typeof GM_addStyle === "function") GM_addStyle(css);
+    else {
+      const style = document.createElement("style");
+      style.textContent = css;
+      document.head.appendChild(style);
+    }
+  };
+
+  const renderPanel = () => {
+    if (!document.body) return;
+    let panel = document.getElementById(PANEL_ID);
+    if (!panel) {
+      panel = document.createElement("section");
+      panel.id = PANEL_ID;
+      document.body.appendChild(panel);
+    }
+    const rows = ["serverSeedHash", "serverSeed", "clientSeed", "nonce", "cursor", "game", "betId", "result", "roll", "multiplier", "hash"];
+    panel.innerHTML = `<div class="athr-head"><div><div class="athr-brand">${BRAND}</div><div>Fairness Data</div></div><button type="button" data-athr-copy>Copy JSON</button></div><div class="athr-body">${rows.map((key) => `<div class="athr-row"><div class="athr-label">${LABELS[key] || key}</div><div class="athr-value ${state.has(key) ? "" : "athr-empty"}">${shortValue(state.get(key))}</div></div>`).join("")}</div>`;
+    panel.querySelector("[data-athr-copy]").onclick = () => navigator.clipboard?.writeText(JSON.stringify(Object.fromEntries(state), null, 2));
+  };
+
+  const rebrand = () => {
+    document.title = document.title.replace(/Jake Predicts|Jake Predictor|Jake/gi, BRAND);
+    document.querySelectorAll("body *").forEach((node) => {
+      if (node.childNodes.length === 1 && node.firstChild?.nodeType === Node.TEXT_NODE) {
+        node.textContent = node.textContent.replace(/Jake Predicts|Jake Predictor|Jake/gi, BRAND);
+      }
+    });
+  };
+
+  const patchNetwork = () => {
+    const originalFetch = window.fetch;
+    if (originalFetch) {
+      window.fetch = async (...args) => {
+        const response = await originalFetch(...args);
+        response.clone().text().then(scanText).catch(() => {});
+        return response;
+      };
+    }
+    const originalOpen = XMLHttpRequest.prototype.open;
+    const originalSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function(...args) {
+      this.addEventListener("load", () => scanText(this.responseText));
+      return originalOpen.apply(this, args);
+    };
+    XMLHttpRequest.prototype.send = function(...args) { return originalSend.apply(this, args); };
+  };
+
+  addStyle();
+  patchNetwork();
+  const boot = () => { renderPanel(); rebrand(); scanText(document.body?.innerText || ""); };
+  if (document.body) boot();
+  else document.addEventListener("DOMContentLoaded", boot, { once: true });
+  new MutationObserver(() => { rebrand(); scanText(document.body?.innerText || ""); }).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+  setInterval(boot, 3000);
+})();
+
 
 // Force login key and usage-limit system overrides.
 (() => {
